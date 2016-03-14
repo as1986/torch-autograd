@@ -28,7 +28,7 @@ return function(opt, params)
       end
       local batch = torch.size(x, 1)
       local steps = torch.size(x, 2)
-      if m ~= nil then mask = m:view(steps, batch, 1) else mask = torch.ones(steps, batch, 1) end
+      if m ~= nil then mask = m:view(batch, steps, 1) else mask = torch.zero(x.new(batch, steps, 1)) + 1 end
 
       -- hiddens:
       prevState = prevState or {}
@@ -58,7 +58,7 @@ return function(opt, params)
          -- write inputs
          local tanhs = torch.tanh( torch.narrow(dots, 2,4,1) )
          local inputValue = torch.select(tanhs, 2,1)
-         local mt = mask[t]:expand(batch, hiddenFeatures)
+         local mt = torch.select(mask,2,t):expand(batch, hiddenFeatures)
 
          -- next c:
          cs[t] = torch.cmul(mt, torch.cmul(forgetGate, cp) + torch.cmul(inputGate, inputValue)) + torch.cmul((-mt + 1), cp)
@@ -80,7 +80,7 @@ return function(opt, params)
          for i in ipairs(hs) do
             hs[i] = torch.view(hs[i], batch,1,hiddenFeatures)
          end
-         return x.cat(hs, 2), newState
+         return util.cat(hs, 2), newState
       end
    end
 

@@ -19,14 +19,16 @@ return function(opt, params)
    table.insert(params, p)
 
    -- function:
-   local f = function(params, x, prevState)
+   local f = function(params, x, prevState, m)
       -- dims:
+      local mask
       local p = params[1] or params
       if torch.nDimension(x) == 2 then
          x = torch.view(x, 1, torch.size(x, 1), torch.size(x, 2))
       end
       local batch = torch.size(x, 1)
       local steps = torch.size(x, 2)
+      if m ~= nil then mask = m:view(steps, batch, 1) else mask = torch.ones(steps, batch, 1) end
 
       -- hiddens:
       prevState = prevState or {}
@@ -56,12 +58,13 @@ return function(opt, params)
          -- write inputs
          local tanhs = torch.tanh( torch.narrow(dots, 2,4,1) )
          local inputValue = torch.select(tanhs, 2,1)
+         local mt = mask[t]:expand(batch, hiddenFeatures)
 
          -- next c:
-         cs[t] = torch.cmul(forgetGate, cp) + torch.cmul(inputGate, inputValue)
+         cs[t] = torch.cmul(mt, torch.cmul(forgetGate, cp) + torch.cmul(inputGate, inputValue)) + torch.cmul((-mt + 1), cp)
 
          -- next h:
-         hs[t] = torch.cmul(outputGate, torch.tanh(cs[t]))
+         hs[t] = torch.cmul(mt, torch.cmul(outputGate, torch.tanh(cs[t]))) + torch.cmul((-mt + 1), hp)
       end
 
 

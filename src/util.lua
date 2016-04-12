@@ -82,7 +82,7 @@ function util.logSoftMax(array)
 end
 
 function util.sigmoid(array)
-   return torch.pow(torch.exp(-array) + 1, -1)
+   return torch.sigmoid(array)
 end
 
 function util.sigmoidInPlace(output, input)
@@ -269,6 +269,18 @@ function util.sortedFlatten(tbl, flat, noRecurse)
       flat[#flat + 1] = tbl
    end
    return flat
+end
+
+function util.shallowCopy(tbl)
+   if type(tbl) == "table" then
+      local copy = { }
+      for k, v in pairs(tbl) do
+         copy[k] = v
+      end
+      return copy
+   else
+      return tbl
+   end
 end
 
 function util.deepCopy(tbl)

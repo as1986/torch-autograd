@@ -476,6 +476,24 @@ overload.module("torch", torch, function(module)
          return out
       end
    })
+
+   module.gradient("cmin", {
+      function(g, ans, x, y)
+         return util.setNotEqual(x, ans, 0, g)
+      end,
+      function(g, ans, x, y)
+         return util.setNotEqual(y, ans, 0, g)
+      end
+   })
+   module.gradient("cmax", {
+      function(g, ans, x, y)
+         return util.setNotEqual(x, ans, 0, g)
+      end,
+      function(g, ans, x, y)
+         return util.setNotEqual(y, ans, 0, g)
+      end
+   })
+
    module.gradient("transpose", {
       function(g, ans, x, d1, d2)
          return torch.transpose(g, d1, d2)
@@ -531,6 +549,12 @@ overload.module("torch", torch, function(module)
          return torch.viewAs(g, x)
       end
    })
+   module.gradient("sigmoid", {
+      function(g, ans, x)
+         local p = torch.cmul(1 - ans, ans)
+         return torch.cmul(g, p)
+      end
+   })
    -- module.gradient("split", {
    --    function(g, ans, x, size, dim)
    --       -- TODO: untested, not sure if we support table output
@@ -582,12 +606,6 @@ overload.module("DirectNode", DirectNode, function(module)
 end)
 
 overload.module("util", util, function(module)
-   module.gradient("sigmoid", {
-      function(g, ans, x)
-         local p = torch.cmul(1 - ans, ans)
-         return torch.cmul(g, p)
-      end
-   })
    module.gradient("fill", {
       function(g, ans, template, x)
          return nil

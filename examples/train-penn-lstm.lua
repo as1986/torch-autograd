@@ -28,8 +28,9 @@ end
 local d = require 'autograd'
 local util = require 'autograd.util'
 local model = require 'autograd.model'
+local gradcheck = require 'autograd.gradcheck' {randomizeInput=true}
 
-d.optimize(true)
+d.optimize(false)
 
 -- Seed
 torch.manualSeed(1)
@@ -181,6 +182,7 @@ for epoch = 1,opt.nEpochs do
 
       -- Grads:
       grads,loss,lstmState = df(params, x, y, lstmState, opt.dropout)
+      print(gradcheck(f, params, x, y, lstmState, 0))
 
       -- Cap gradient norms:
       local norm = 0
@@ -200,6 +202,7 @@ for epoch = 1,opt.nEpochs do
             params[k][kk]:add(-lr, grads[k][kk])
          end
       end
+      print('diff3:'..(torch.sum(grads.words.W)))
 
       -- Loss: exponentiate nll gives perplexity
       aloss = aloss + loss

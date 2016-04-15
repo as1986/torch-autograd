@@ -2,10 +2,10 @@
 local autograd = require 'autograd'
 
 -- Perturbation (finite diffs):
-local perturbation = 1e-2
+local perturbation = 1e-6
 
 -- Threshold:
-local threshold = 1e-3
+local threshold = 1e-5
 
 -- Find grad:
 local function findGrad(ref, x, dst)
@@ -66,7 +66,7 @@ local function jacobianFromFiniteDifferences(func, inputs, var)
    return grads
 end
 
-local function gradcheckvar(func, inputs, var, randomizeInput)
+local function gradcheckvar2(func, inputs, var, randomizeInput)
    -- Random input:
    if randomizeInput then
       var:uniform(-10,10)
@@ -79,15 +79,14 @@ local function gradcheckvar(func, inputs, var, randomizeInput)
    local idx = math.random(1, noise:size(1))
 
    noise:narrow(1,idx,1):uniform(-perturbation, perturbation)
-
    var:add(torch.view(noise, var:size()))
 
    local perturbedLoss = func(table.unpack(inputs))
-
    local approxPerturbed = originalLoss + torch.dot(jacobian, noise)
 
    -- Error:
-   local err = math.abs((perturbedLoss - approxPerturbed)) / (math.max(perturbedLoss, originalLoss)+perturbation)
+   local err = math.abs((perturbedLoss - approxPerturbed)) /
+      (math.max(perturbedLoss, originalLoss)+perturbation)
 
    -- Threhold?
    local pass = err < threshold
@@ -98,6 +97,29 @@ local function gradcheckvar(func, inputs, var, randomizeInput)
       print('error = ' .. err)
    end
    return pass, err
+end
+
+local function gradcheckvar(func, inputs, var, randomizeInput)
+   -- Random input:
+   if randomizeInput then
+      var:uniform(-1,1)
+   end
+
+   -- Estimate grads with fprop:
+   local jacobian1 = jacobianFromFiniteDifferences(func, inputs, var)
+
+   -- Coded grads:
+   local jacobian2 = jacobianFromAutograd(func, inputs, var)
+
+   -- Error:
+   local err = (jacobian1 - jacobian2):abs():max()
+
+   -- Threhold?
+   local pass = err < threshold
+   if not pass then
+      print('error = ' .. err)
+   end
+   return pass
 end
 
 -- Test grads:
@@ -116,11 +138,12 @@ return function(opt)
       local max_err = 0
       local ok = true
       for i,var in ipairs(vars) do
-         local t, err = gradcheckvar(func, args, var, randomizeInput)
+         local t, err = gradcheckvar2(func, args, var, randomizeInput)
          ok = ok and t
          if err > max_err then max_err = err end
+         ok = ok and gradcheckvar(func, args, var, randomizeInput)
       end
-      print('[gradcheck] maximum error = '..max_err)
+      print('[gradcheck2] maximum error = '..max_err)
       return ok
    end
 

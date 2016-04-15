@@ -102,7 +102,7 @@ local function gradcheckvar(func, inputs, var, randomizeInput)
       print('approximated perturbed loss = '..approxPerturbed)
       print('error = ' .. err)
    end
-   return pass
+   return pass, err
 end
 
 -- Test grads:
@@ -118,10 +118,14 @@ return function(opt)
       local args = {...}
       -- get all vars:
       local vars = autograd.util.sortedFlatten(args[1])
+      local max_err = 0
       local ok = true
       for i,var in ipairs(vars) do
-         ok = ok and gradcheckvar(func, args, var, randomizeInput)
+         local t, err = gradcheckvar(func, args, var, randomizeInput)
+         ok = ok and t
+         if err > max_err then max_err = err end
       end
+      print('[gradcheck] maximum error = '..max_err)
       return ok
    end
 

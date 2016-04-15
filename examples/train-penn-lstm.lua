@@ -28,9 +28,9 @@ end
 local d = require 'autograd'
 local util = require 'autograd.util'
 local model = require 'autograd.model'
-local gradcheck = require 'autograd.gradcheck' {randomizeInput=true}
+local gradcheck = require 'autograd.gradcheck' {randomizeInput=false}
 
-d.optimize(false)
+d.optimize(true)
 
 -- Seed
 torch.manualSeed(1)

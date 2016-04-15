@@ -5,7 +5,7 @@ local autograd = require 'autograd'
 local perturbation = 1e-2
 
 -- Threshold:
-local threshold = 1e-4
+local threshold = 1e-3
 
 -- Find grad:
 local function findGrad(ref, x, dst)
@@ -74,16 +74,11 @@ local function gradcheckvar(func, inputs, var, randomizeInput)
 
    -- Estimate grads with fprop:
    local jacobian = jacobianFromAutograd(func, inputs, var)
-
    local originalLoss = func(table.unpack(inputs))
-
    local noise = jacobian:view(-1):clone():zero()
-
    local idx = math.random(1, noise:size(1))
 
    noise:narrow(1,idx,1):uniform(-perturbation, perturbation)
-
-   local varBackup = var:clone()
 
    var:add(torch.view(noise, var:size()))
 
@@ -92,7 +87,7 @@ local function gradcheckvar(func, inputs, var, randomizeInput)
    local approxPerturbed = originalLoss + torch.dot(jacobian, noise)
 
    -- Error:
-   local err = math.abs((perturbedLoss - approxPerturbed)) / (math.max(perturbedLoss, originalLoss))
+   local err = math.abs((perturbedLoss - approxPerturbed)) / (math.max(perturbedLoss, originalLoss)+perturbation)
 
    -- Threhold?
    local pass = err < threshold

@@ -1145,7 +1145,7 @@ local tests = {
 
    Models_RecurrentLSTMNetwork = function()
       -- Define RNN:
-      local f,params = autograd.model.RecurrentLSTMNetwork({
+      local f, params, masked_f = autograd.model.RecurrentLSTMNetwork({
          inputFeatures = 10,
          hiddenFeatures = 10,
          outputType = 'last',
@@ -1161,19 +1161,30 @@ local tests = {
          return torch.sum(v)
       end
 
+      local loss_m = function(params, input)
+         local v = masked_f(params, input[1], nil, input[2])
+         return torch.sum(v)
+      end
+
       -- Test on sequence data:
       local i = torch.randn(13, 10)
+      local m = torch.Tensor(13):zero()
+      m:narrow(1,1,9):fill(1)
       local o = loss(params, i)
+      local masked_o = loss_m(params, {i, m})
       local g = autograd(loss)(params, i)
+      local masked_g = autograd(loss_m)(params, {i, m})
 
       -- Checks
       tester:asserteq(type(g), 'table', 'gradients could not be computed')
+      tester:asserteq(type(masked_g), 'table', 'gradients could not be computed')
 
       -- Gradcheck:
       tester:assert(gradcheck(loss, params, i), 'incorrect gradients')
+      tester:assert(gradcheck(loss_m, params, {i, m}), 'incorrect gradients')
 
       -- Define RNN with all states exposed:
-      local f,params = autograd.model.RecurrentLSTMNetwork({
+      local f,params,masked_f = autograd.model.RecurrentLSTMNetwork({
          inputFeatures = 10,
          hiddenFeatures = 10,
          outputType = 'all',
@@ -1187,11 +1198,15 @@ local tests = {
 
       -- Test on sequence data:
       local o = loss(params, i)
+      local masked_o = loss_m(params, {i, m})
       local g = autograd(loss)(params, i)
+      local masked_g = autograd(loss_m)(params, {i, m})
 
       -- Checks
       tester:asserteq(type(g), 'table', 'gradients could not be computed')
+      tester:asserteq(type(masked_g), 'table', 'gradients could not be computed')
       tester:assert(gradcheck(loss, params, i), 'incorrect gradients')
+      tester:assert(gradcheck(loss_m, params, {i, m}), 'incorrect gradients')
    end,
 
    Models_RecurrentGRUNetwork = function()

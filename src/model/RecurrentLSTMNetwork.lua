@@ -7,6 +7,7 @@ return function(opt, params)
    local inputFeatures = opt.inputFeatures or 10
    local hiddenFeatures = opt.hiddenFeatures or 100
    local outputType = opt.outputType or 'last' -- 'last' or 'all'
+   local reverse = opt.reverse or false
 
    -- container:
    params = params or {}
@@ -28,18 +29,32 @@ return function(opt, params)
       local batch = torch.size(x, 1)
       local steps = torch.size(x, 2)
 
+      local head
+      local tail
+      local step
+
+      if not reverse then
+         head = 1
+         tail = steps
+         step = 1
+      else
+         head = steps
+         tail = 1
+         step = -1
+      end
+
       -- hiddens:
       prevState = prevState or {}
       local hs = {}
       local cs = {}
       -- go over time:
-      for t = 1,steps do
+      for t = head,tail,step do
          -- xt
          local xt = torch.select(x,2,t)
 
          -- prev h and prev c
-         local hp = hs[t-1] or prevState.h or torch.zero(x.new(batch, hiddenFeatures))
-         local cp = cs[t-1] or prevState.c or torch.zero(x.new(batch, hiddenFeatures))
+         local hp = hs[t-step] or prevState.h or torch.zero(x.new(batch, hiddenFeatures))
+         local cp = cs[t-step] or prevState.c or torch.zero(x.new(batch, hiddenFeatures))
 
          -- pack all dot products:
          local dots = torch.cat(xt,hp,2) * p.W + torch.expand(p.b, batch, 4*hiddenFeatures)
@@ -60,12 +75,12 @@ return function(opt, params)
          hs[t] = torch.cmul(outputGate, torch.tanh(cs[t]))
       end
       -- save state
-      local newState = {h=hs[#hs], c=cs[#cs]}
+      local newState = {h=hs[tail], c=cs[tail]}
 
       -- output:
       if outputType == 'last' then
          -- return last hidden code:
-         return hs[#hs], newState
+         return hs[tail], newState
       else
          -- return all:
          for i in ipairs(hs) do
@@ -87,18 +102,32 @@ return function(opt, params)
       local steps = torch.size(x, 2)
       mask = m:view(batch, steps, 1)
 
+      local head
+      local tail
+      local step
+
+      if not reverse then
+         head = 1
+         tail = steps
+         step = 1
+      else
+         head = steps
+         tail = 1
+         step = -1
+      end
+
       -- hiddens:
       prevState = prevState or {}
       local hs = {}
       local cs = {}
       -- go over time:
-      for t = 1,steps do
+      for t = head,tail,step do
          -- xt
          local xt = torch.select(x,2,t)
 
          -- prev h and prev c
-         local hp = hs[t-1] or prevState.h or torch.zero(x.new(batch, hiddenFeatures))
-         local cp = cs[t-1] or prevState.c or torch.zero(x.new(batch, hiddenFeatures))
+         local hp = hs[t-step] or prevState.h or torch.zero(x.new(batch, hiddenFeatures))
+         local cp = cs[t-step] or prevState.c or torch.zero(x.new(batch, hiddenFeatures))
 
          -- pack all dot products:
          local dots = torch.cat(xt,hp,2) * p.W + torch.expand(p.b, batch, 4*hiddenFeatures)
@@ -131,7 +160,7 @@ return function(opt, params)
       -- output:
       if outputType == 'last' then
          -- return last hidden code:
-         return hs[#hs], newState
+         return hs[tail], newState
       else
          -- return all:
          for i in ipairs(hs) do
@@ -144,4 +173,3 @@ return function(opt, params)
    -- layers
    return f, params, masked_f
 end
-
